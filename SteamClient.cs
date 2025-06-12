@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.IO;
 using System.Linq.Expressions;
+using System.Windows.Forms;
 
 /// <summary>
 /// Provides methods for interacting with a Steam Client instance.
@@ -72,14 +73,35 @@ public class SteamClient
             string[] subKeyNames = registryKey.GetSubKeyNames();
             for (int i = 0; i < subKeyNames.Length; i++)
             {
-                using RegistryKey subKey = registryKey.OpenSubKey(subKeyNames[i]);
-                if ((int)subKey.GetValue("Installed", 0) == 1 &&
-                    subKey.GetValueNames().Contains("Name"))
-                    apps[subKey.GetValue("Name").ToString()] = subKeyNames[i];
+                RegistryKey subKey = registryKey.OpenSubKey(subKeyNames[i]);
+                if (subKey != null)
+                {
+                    Object installed = subKey.GetValue("Installed");
+                    Object name = subKey.GetValue("Name");
+                    if (installed != null && (int)installed == 1 && name != null)
+                    {
+                        apps[name.ToString()] = subKeyNames[i];
+                    }
+                }
             }
         }
 
         return apps;
+    }
+
+    public static bool KillSteam(string steamExe)
+    {
+        try
+        {
+            Process[] steam = Process.GetProcessesByName("steam");
+            for (int i = 0; i < steam.Length; i++)
+            {
+                steam[i].Kill();
+            }
+        } catch (InvalidOperationException) {
+            return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -93,10 +115,20 @@ public class SteamClient
         using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam");
         string steamExe = registryKey.GetValue("SteamExe").ToString();
 
-        if (FindWindow("vguiPopupWindow", "SteamClient") != IntPtr.Zero || !File.Exists(steamExe))
+        if (!File.Exists(steamExe))
+        {
+            MessageBox.Show("App cant found ur Steam path", "Steam-Lite", MessageBoxButtons.OK);
             return null;
+        }
+
+        if (FindWindow("vguiPopupWindow", "SteamClient") != IntPtr.Zero)
+            if (MessageBox.Show("Try to kill Steam.exe?", "Steam-Lite", MessageBoxButtons.YesNo) == DialogResult.Yes) //0x6 == yes
+              KillSteam(steamExe);
+            else
+               return null;
+
         Process process;
-        if (GetWindowThreadProcessId(FindWindow("vguiPopupWindow", "Untitled"), out uint dwProcessId) != 0)
+        if (GetWindowThreadProcessId(FindWindow("vguiPopupWindow", "SteamClient"), out uint dwProcessId) != 0)
             using (process = Process.GetProcessById((int)dwProcessId))
             {
                 Process.Start(steamExe, "-shutdown").Dispose();
@@ -105,8 +137,11 @@ public class SteamClient
 
         process = Process.Start(steamExe, $"-silent -cef-single-process -cef-in-process-gpu -cef-disable-d3d11 -cef-disable-breakpad");
         IntPtr hWnd;
-        while ((hWnd = FindWindow("vguiPopupWindow", "Untitled")) == IntPtr.Zero)
+        while ((hWnd = FindWindow("vguiPopupWindow", "")) == IntPtr.Zero)
+        {
             Thread.Sleep(1);
+        }
+            
         SetWindowText(hWnd, "SteamClient");
         WebHelper(false);
 
@@ -192,26 +227,30 @@ public class SteamClient
     /// </returns>
     public static Dictionary<string, string> GetAppsForUser()
     {
-        Dictionary<string, string> apps = GetApps(), userApps = []; ;
-        using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam");
+        //Dictionary<string, string> apps = GetApps(), userApps = []; ;
+        /*using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam");
         using RegistryKey subKey = registryKey.OpenSubKey("ActiveProcess");
+        while ((int)subKey.GetValue("ActiveUser") == 0)
+        { }
+
         string[] lines = File.ReadAllLines($"{registryKey.GetValue("SteamPath")}/userdata/{subKey.GetValue("ActiveUser")}/config/localconfig.vdf");
 
         for (int i = 0; i < lines.Length; i++)
         {
             try
             {
-                KeyValuePair<string, string> keyValuePair = new();
-                string line = lines[i].Trim().Trim('"');
-                Convert.ToUInt32(line);
-                keyValuePair = apps.First(source => source.Value == line);
-                userApps.Add(keyValuePair.Key, keyValuePair.Value);
+                //KeyValuePair<string, string> keyValuePair = new();
+                //string line = lines[i].Trim().Trim('"');
+                //Convert.ToUInt32(line);
+                //keyValuePair = apps.First(source => source.Value == line);
+                //userApps.Add(keyValuePair.Key, keyValuePair.Value);
             }
             catch (FormatException) { }
             catch (InvalidOperationException) { }
 
-        }
+        }*/
 
-        return userApps;
+        return GetApps();
+        //return userApps;
     }
 }

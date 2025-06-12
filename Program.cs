@@ -30,7 +30,7 @@ static class Program
     }
     else
     {
-      MessageBox.Show("Steam is either already running or isn't installed.", "Steam Lite", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      MessageBox.Show("Steam isn't installed.", "Steam Lite", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
   }
 }

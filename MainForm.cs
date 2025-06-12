@@ -3,6 +3,8 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Drawing;
 using System.Threading;
+using System;
+using System.Threading.Tasks;
 
 public class MainForm : Form
 {
@@ -52,25 +54,32 @@ public class MainForm : Form
 
         listView.SelectedIndexChanged += (sender, e) => button.Enabled = listView.Enabled && listView.SelectedItems.Count != 0;
         listView.ItemActivate += (sender, e) => button.PerformClick();
-        button.Click += (sender, e) => new Thread(() =>
+        button.Click += (sender, e) =>
         {
             if (listView.SelectedItems.Count != 0)
             {
                 listView.Enabled = false;
                 button.Enabled = false;
-                Text = $"Steam Lite - {listView.SelectedItems[0].Text}";
+                this.Text = $"Steam Lite - {listView.SelectedItems[0].Text}";
                 button.Text = "Running";
+
                 SteamClient.RunGameId(apps[listView.SelectedItems[0].Text]);
-                Text = "Steam Lite";
+
+                this.Text = "Steam Lite";
                 button.Text = "Play";
                 listView.Enabled = true;
                 button.Enabled = true;
                 listView.SelectedItems[0].Selected = false;
             }
-        }).Start();
+        };
         OnResize(null);
         CenterToScreen();
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
 
+        Application.Exit();
+    }
 }
